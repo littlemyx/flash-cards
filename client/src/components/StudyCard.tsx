@@ -19,6 +19,7 @@ export default function StudyCard({ card, onRate }: StudyCardProps) {
   useEffect(() => {
     setShowBack(false);
     setLeaving(false);
+    api.start({ x: 0 });
   }, [card.id]);
 
   // Cleanup animation state on unmount

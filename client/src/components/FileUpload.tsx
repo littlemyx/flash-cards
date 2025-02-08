@@ -45,7 +45,12 @@ export default function FileUpload() {
         }
 
         await apiRequest('POST', '/api/flashcards/upload', { cards });
-        await queryClient.invalidateQueries({ queryKey: ['/api/flashcards'] });
+
+        // Invalidate both queries to update the study section
+        await Promise.all([
+          queryClient.invalidateQueries({ queryKey: ['/api/flashcards'] }),
+          queryClient.invalidateQueries({ queryKey: ['/api/flashcards/due'] })
+        ]);
 
         toast({
           title: "Success",

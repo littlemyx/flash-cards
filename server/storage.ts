@@ -1,4 +1,6 @@
-import { type Flashcard, type InsertFlashcard } from "@shared/schema";
+import { db } from "./db";
+import { type Flashcard, type InsertFlashcard, flashcards } from "@shared/schema";
+import { eq, lte } from "drizzle-orm";
 
 export interface IStorage {
   getFlashcards(): Promise<Flashcard[]>;
@@ -8,48 +10,46 @@ export interface IStorage {
   getDueCards(limit?: number): Promise<Flashcard[]>;
 }
 
-export class MemStorage implements IStorage {
-  private flashcards: Map<number, Flashcard>;
-  private currentId: number;
-
-  constructor() {
-    this.flashcards = new Map();
-    this.currentId = 1;
-  }
-
+export class DatabaseStorage implements IStorage {
   async getFlashcards(): Promise<Flashcard[]> {
-    return Array.from(this.flashcards.values());
+    return await db.select().from(flashcards);
   }
 
   async getFlashcard(id: number): Promise<Flashcard | undefined> {
-    return this.flashcards.get(id);
+    const [card] = await db.select().from(flashcards).where(eq(flashcards.id, id));
+    return card;
   }
 
   async createFlashcard(insertCard: InsertFlashcard): Promise<Flashcard> {
-    const id = this.currentId++;
-    const card: Flashcard = {
-      id,
-      ...insertCard,
-      nextReview: new Date(),
-      interval: 0,
-      easeFactor: 250,
-      repetitions: 0
-    };
-    this.flashcards.set(id, card);
+    const [card] = await db
+      .insert(flashcards)
+      .values({
+        ...insertCard,
+        nextReview: new Date(),
+        interval: 0,
+        easeFactor: 250,
+        repetitions: 0
+      })
+      .returning();
     return card;
   }
 
   async updateFlashcard(card: Flashcard): Promise<Flashcard> {
-    this.flashcards.set(card.id, card);
-    return card;
+    const [updated] = await db
+      .update(flashcards)
+      .set(card)
+      .where(eq(flashcards.id, card.id))
+      .returning();
+    return updated;
   }
 
   async getDueCards(limit = 20): Promise<Flashcard[]> {
-    const now = new Date();
-    return Array.from(this.flashcards.values())
-      .filter(card => card.nextReview <= now)
-      .slice(0, limit);
+    return await db
+      .select()
+      .from(flashcards)
+      .where(lte(flashcards.nextReview, new Date()))
+      .limit(limit);
   }
 }
 
-export const storage = new MemStorage();
+export const storage = new DatabaseStorage();

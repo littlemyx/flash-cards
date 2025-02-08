@@ -21,6 +21,14 @@ export default function StudyCard({ card, onRate }: StudyCardProps) {
     setLeaving(false);
   }, [card.id]);
 
+  // Cleanup animation state on unmount
+  useEffect(() => {
+    return () => {
+      setLeaving(false);
+      api.stop();
+    };
+  }, []);
+
   const [{ x }, api] = useSpring(() => ({ x: 0 }));
 
   const bind = useDrag(({ down, movement: [mx], direction: [xDir], velocity: [vx] }) => {
@@ -44,6 +52,7 @@ export default function StudyCard({ card, onRate }: StudyCardProps) {
             } catch (error) {
               console.error("Error during rating:", error);
               setLeaving(false);
+              api.start({ x: 0 }); // Reset position on error
             }
           },
         });
@@ -59,6 +68,7 @@ export default function StudyCard({ card, onRate }: StudyCardProps) {
     } catch (error) {
       console.error("Error during drag:", error);
       setLeaving(false);
+      api.start({ x: 0 }); // Reset position on error
     }
   }, {
     axis: 'x',

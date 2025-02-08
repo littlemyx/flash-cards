@@ -24,25 +24,41 @@ export default function StudyCard({ card, onRate }: StudyCardProps) {
   const [{ x }, api] = useSpring(() => ({ x: 0 }));
 
   const bind = useDrag(({ down, movement: [mx], direction: [xDir], velocity: [vx] }) => {
-    // Check absolute velocity value and lower the threshold
-    const trigger = Math.abs(vx) > 0.1;
-    const dir = xDir < 0 ? -1 : 1;
+    try {
+      // Only process gestures if card isn't already leaving
+      if (leaving) return;
 
-    if (!down && trigger) {
-      setLeaving(true);
-      api.start({
-        x: dir * 500,
-        immediate: false,
-        onRest: () => {
-          // Left swipe (don't remember) = quality 1, Right swipe (remember) = quality 5
-          onRate(dir < 0 ? 1 : 5);
-        },
-      });
-    } else {
-      api.start({
-        x: down ? mx : 0,
-        immediate: down,
-      });
+      // Check absolute velocity value and lower the threshold
+      const trigger = Math.abs(vx) > 0.1;
+      const dir = xDir < 0 ? -1 : 1;
+
+      if (!down && trigger) {
+        setLeaving(true);
+        api.start({
+          x: dir * 500,
+          immediate: false,
+          onRest: () => {
+            try {
+              // Left swipe (don't remember) = quality 1, Right swipe (remember) = quality 5
+              onRate(dir < 0 ? 1 : 5);
+            } catch (error) {
+              console.error("Error during rating:", error);
+              setLeaving(false);
+            }
+          },
+        });
+      } else {
+        // Only allow dragging if not already leaving
+        if (!leaving) {
+          api.start({
+            x: down ? mx : 0,
+            immediate: down,
+          });
+        }
+      }
+    } catch (error) {
+      console.error("Error during drag:", error);
+      setLeaving(false);
     }
   }, {
     axis: 'x',

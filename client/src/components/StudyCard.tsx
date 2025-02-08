@@ -1,7 +1,8 @@
+
 import { useState, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { useSpring, animated } from "@react-spring/web";
+import { useSpring, animated, to } from "@react-spring/web";
 import { useDrag } from "@use-gesture/react";
 import { Repeat } from "lucide-react";
 import type { Flashcard } from "@shared/schema";
@@ -19,7 +20,7 @@ export default function StudyCard({ card, onRate }: StudyCardProps) {
   useEffect(() => {
     setShowBack(false);
     setLeaving(false);
-    api.start({ x: 0 });
+    api.start({ x: 0, opacity: 1, scale: 1 });
   }, [card.id]);
 
   // Cleanup animation state on unmount
@@ -30,14 +31,17 @@ export default function StudyCard({ card, onRate }: StudyCardProps) {
     };
   }, []);
 
-  const [{ x }, api] = useSpring(() => ({ x: 0 }));
+  const [{ x, opacity, scale }, api] = useSpring(() => ({ 
+    x: 0,
+    opacity: 1,
+    scale: 1,
+    config: { tension: 500, friction: 30 }
+  }));
 
   const bind = useDrag(({ down, movement: [mx], direction: [xDir], velocity: [vx] }) => {
     try {
-      // Only process gestures if card isn't already leaving
       if (leaving) return;
 
-      // Check absolute velocity value and lower the threshold
       const trigger = Math.abs(vx) > 0.1;
       const dir = xDir < 0 ? -1 : 1;
 
@@ -45,23 +49,27 @@ export default function StudyCard({ card, onRate }: StudyCardProps) {
         setLeaving(true);
         api.start({
           x: dir * 500,
+          opacity: 0,
+          scale: 0.8,
           immediate: false,
           onRest: () => {
             try {
-              // Left swipe (don't remember) = quality 1, Right swipe (remember) = quality 5
               onRate(dir < 0 ? 1 : 5);
             } catch (error) {
               console.error("Error during rating:", error);
               setLeaving(false);
-              api.start({ x: 0 }); // Reset position on error
+              api.start({ x: 0, opacity: 1, scale: 1 });
             }
           },
         });
       } else {
-        // Only allow dragging if not already leaving
         if (!leaving) {
+          const xMove = down ? mx : 0;
+          const moveScale = 1 - Math.min(Math.abs(xMove) / 1000, 0.2);
           api.start({
-            x: down ? mx : 0,
+            x: xMove,
+            scale: moveScale,
+            opacity: 1 - (Math.abs(xMove) / 500),
             immediate: down,
           });
         }
@@ -69,7 +77,7 @@ export default function StudyCard({ card, onRate }: StudyCardProps) {
     } catch (error) {
       console.error("Error during drag:", error);
       setLeaving(false);
-      api.start({ x: 0 }); // Reset position on error
+      api.start({ x: 0, opacity: 1, scale: 1 });
     }
   }, {
     axis: 'x',
@@ -81,6 +89,8 @@ export default function StudyCard({ card, onRate }: StudyCardProps) {
       <animated.div
         style={{
           x,
+          opacity,
+          scale,
           touchAction: 'none',
         }}
         {...bind()}

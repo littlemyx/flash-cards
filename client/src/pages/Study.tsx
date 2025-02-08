@@ -1,8 +1,10 @@
+
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient } from "@/lib/queryClient";
 import { apiRequest } from "@/lib/queryClient";
 import StudyCard from "@/components/StudyCard";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { useState, useEffect } from "react";
 import type { Flashcard } from "@shared/schema";
 
 export default function Study() {
@@ -10,12 +12,21 @@ export default function Study() {
     queryKey: ['/api/flashcards/due']
   });
 
+  const [currentCardId, setCurrentCardId] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (dueCards?.length && !currentCardId) {
+      setCurrentCardId(dueCards[0].id);
+    }
+  }, [dueCards]);
+
   const reviewMutation = useMutation({
     mutationFn: async ({ id, quality }: { id: number; quality: number }) => {
       await apiRequest('POST', '/api/flashcards/review', { id, quality });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/flashcards/due'] });
+      setCurrentCardId(null);
     }
   });
 
@@ -36,6 +47,8 @@ export default function Study() {
     );
   }
 
+  const currentCard = dueCards.find(card => card.id === currentCardId);
+
   return (
     <div className="space-y-8">
       <h1 className="text-3xl font-bold text-center">Study Session</h1>
@@ -43,10 +56,13 @@ export default function Study() {
         {dueCards.length} cards due for review
       </p>
       
-      <StudyCard
-        card={dueCards[0]}
-        onRate={(quality) => reviewMutation.mutate({ id: dueCards[0].id, quality })}
-      />
+      {currentCard && (
+        <StudyCard
+          key={currentCard.id}
+          card={currentCard}
+          onRate={(quality) => reviewMutation.mutate({ id: currentCard.id, quality })}
+        />
+      )}
     </div>
   );
 }

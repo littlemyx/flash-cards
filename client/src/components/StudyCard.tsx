@@ -23,8 +23,9 @@ export default function StudyCard({ card, onRate }: StudyCardProps) {
 
   const [{ x }, api] = useSpring(() => ({ x: 0 }));
 
-  const bind = useDrag(({ down, movement: [mx], direction: [xDir], velocity }) => {
-    const trigger = velocity > 0.2;
+  const bind = useDrag(({ down, movement: [mx], direction: [xDir], velocity: [vx] }) => {
+    // Check absolute velocity value and lower the threshold
+    const trigger = Math.abs(vx) > 0.1;
     const dir = xDir < 0 ? -1 : 1;
 
     if (!down && trigger) {
@@ -33,8 +34,8 @@ export default function StudyCard({ card, onRate }: StudyCardProps) {
         x: dir * 500,
         immediate: false,
         onRest: () => {
-          // Right swipe (remember) = quality 5, Left swipe (don't remember) = quality 1
-          onRate(dir > 0 ? 5 : 1);
+          // Left swipe (don't remember) = quality 1, Right swipe (remember) = quality 5
+          onRate(dir < 0 ? 1 : 5);
         },
       });
     } else {

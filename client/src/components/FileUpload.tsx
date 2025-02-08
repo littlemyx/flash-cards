@@ -19,11 +19,19 @@ export default function FileUpload() {
         const content = e.target?.result as string;
         const cards: InsertFlashcard[] = content
           .split('\n')
-          .filter(line => line.trim())
+          .filter(line => line.trim() && !line.startsWith('#')) // Skip comments and empty lines
           .map(line => {
-            const [front, back] = line.split(',').map(s => s.trim());
+            // Split by tab, which is the standard ANKI format separator
+            const fields = line.split('\t').map(s => s.trim());
+
+            // ANKI format typically has: German word, Article (optional), English translation
+            // We'll combine article (if present) with the German word
+            const front = fields[1] ? `${fields[1]} ${fields[0]}` : fields[0];
+            const back = fields[fields.length - 1]; // Last field is always English translation
+
             return { front, back };
-          });
+          })
+          .filter(card => card.front && card.back); // Ensure both sides have content
 
         await apiRequest('POST', '/api/flashcards/upload', { cards });
         await queryClient.invalidateQueries({ queryKey: ['/api/flashcards'] });
@@ -35,7 +43,7 @@ export default function FileUpload() {
       } catch (error) {
         toast({
           title: "Error",
-          description: "Failed to upload file",
+          description: "Failed to upload file. Make sure the file follows the ANKI format.",
           variant: "destructive"
         });
       }
@@ -48,7 +56,7 @@ export default function FileUpload() {
     <div className="flex items-center space-x-2">
       <input
         type="file"
-        accept=".txt,.csv"
+        accept=".txt,.csv,.tsv"
         onChange={handleFileUpload}
         className="hidden"
         id="file-upload"
@@ -57,7 +65,7 @@ export default function FileUpload() {
         <Button variant="outline" className="cursor-pointer" asChild>
           <span>
             <Upload className="h-4 w-4 mr-2" />
-            Upload Cards
+            Upload ANKI Cards
           </span>
         </Button>
       </label>

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import type { Flashcard } from "@shared/schema";
@@ -11,13 +11,18 @@ interface StudyCardProps {
 export default function StudyCard({ card, onRate }: StudyCardProps) {
   const [showAnswer, setShowAnswer] = useState(false);
 
+  // Reset showAnswer when card changes
+  useEffect(() => {
+    setShowAnswer(false);
+  }, [card.id]);
+
   return (
     <Card className="w-full max-w-2xl mx-auto">
       <CardContent className="p-6 space-y-4">
         <div className="min-h-[200px] flex items-center justify-center text-xl">
           {showAnswer ? card.back : card.front}
         </div>
-        
+
         {!showAnswer ? (
           <Button 
             className="w-full" 

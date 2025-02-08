@@ -19,19 +19,30 @@ export default function FileUpload() {
         const content = e.target?.result as string;
         const cards: InsertFlashcard[] = content
           .split('\n')
-          .filter(line => line.trim() && !line.startsWith('#')) // Skip comments and empty lines
+          .filter(line => line.trim() && !line.startsWith('[')) // Skip metadata/empty lines
           .map(line => {
-            // Split by tab, which is the standard ANKI format separator
+            // Split by tab and trim each field
             const fields = line.split('\t').map(s => s.trim());
 
-            // ANKI format typically has: German word, Article (optional), English translation
-            // We'll combine article (if present) with the German word
-            const front = fields[1] ? `${fields[1]} ${fields[0]}` : fields[0];
-            const back = fields[fields.length - 1]; // Last field is always English translation
+            // Skip if we don't have enough fields
+            if (fields.length < 4) return null;
 
-            return { front, back };
+            // Extract German word/phrase and English translation
+            const germanWord = fields[1]; // e.g., "die Ansage, -n"
+            const englishTranslation = fields[3]; // e.g., "announcement"
+
+            if (!germanWord || !englishTranslation) return null;
+
+            return {
+              front: germanWord,
+              back: englishTranslation
+            };
           })
-          .filter(card => card.front && card.back); // Ensure both sides have content
+          .filter((card): card is InsertFlashcard => card !== null);
+
+        if (cards.length === 0) {
+          throw new Error("No valid cards found in the file");
+        }
 
         await apiRequest('POST', '/api/flashcards/upload', { cards });
         await queryClient.invalidateQueries({ queryKey: ['/api/flashcards'] });
@@ -43,7 +54,7 @@ export default function FileUpload() {
       } catch (error) {
         toast({
           title: "Error",
-          description: "Failed to upload file. Make sure the file follows the ANKI format.",
+          description: error instanceof Error ? error.message : "Failed to upload file. Make sure the file follows the ANKI format.",
           variant: "destructive"
         });
       }
